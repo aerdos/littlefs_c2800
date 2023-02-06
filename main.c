@@ -97,6 +97,7 @@ int test_1(const char *path) {
     ret = lfs_file_write(&lfs, &file, buffer, size);
     ret = lfs_file_close(&lfs, &file);
 
+    // this is just to see how we would read binary data to an array, not used in test
     memset(buffer, 0, sizeof(buffer));
     ret = lfs_file_open(&lfs, &file, path, LFS_O_RDWR | LFS_O_CREAT);
     ret = lfs_file_read(&lfs, &file, buffer, 10);
