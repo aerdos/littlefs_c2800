@@ -84,13 +84,13 @@ int test_1(const char *path) {
     char buffer[10];
 
     size = strlen("Hi") + 1;
-    strcpy((char*)buffer, "Hi");
+    strncpy((char*)buffer, "Hi", sizeof(buffer));
 
     ret = lfs_format(&lfs, &cfg);
     ret = lfs_mount(&lfs, &cfg);
 
     uint32_t uint32_a = 0x01234567;
-    uint16_t uint16_a = 0x7654;
+    uint16_t uint16_a = 0xABCD;
     ret = lfs_file_open(&lfs, &file, path, LFS_O_RDWR | LFS_O_CREAT);
     ret = lfs_file_write(&lfs, &file, &uint32_a, sizeof(uint32_a));
     ret = lfs_file_write(&lfs, &file, &uint16_a, sizeof(uint16_a));
@@ -103,6 +103,7 @@ int test_1(const char *path) {
     ret = lfs_file_read(&lfs, &file, buffer, 10);
     ret = lfs_file_close(&lfs, &file);
 
+    // this is the same order as the writes, not used in the test
     uint32_a = uint16_a = 0;
     memset(buffer, 0, sizeof(buffer));
     ret = lfs_file_open(&lfs, &file, path, LFS_O_RDWR | LFS_O_CREAT);
@@ -111,12 +112,25 @@ int test_1(const char *path) {
     ret = lfs_file_read(&lfs, &file, buffer, size);
     ret = lfs_file_close(&lfs, &file);
 
+    uint32_a = uint16_a = 0;
+    memset(buffer, 0, sizeof(buffer));
+    ret = lfs_file_open(&lfs, &file, path, LFS_O_RDONLY);
+    size = lfs_file_size(&lfs, &file);
+    ret = lfs_file_seek(&lfs, &file, 2, LFS_SEEK_CUR); // offset is in native 16-bit bytes
+    ret = lfs_file_read(&lfs, &file, &uint16_a, sizeof(uint16_a));
+    ret = lfs_file_seek(&lfs, &file, 0, LFS_SEEK_SET); // should go back to the start of the file
+    ret = lfs_file_read(&lfs, &file, &uint32_a, sizeof(uint32_a));
+    ret = lfs_file_seek(&lfs, &file, 3, LFS_SEEK_SET);
+    ret = lfs_file_read(&lfs, &file, buffer, 10); // only reads 3 16-bit bytes, that's all that's left
+    ret = lfs_file_close(&lfs, &file);
+
     ret = lfs_unmount(&lfs);
 
     if (uint32_a == 0x01234567
-            && uint16_a == 0x7654
+            && uint16_a == 0xABCD
             && ret == 0
-            && strcmp(buffer, "Hi") == 0) {
+            && strcmp(buffer, "Hi") == 0
+            && size == 6) {
         return 0;
     }
     return -1;
